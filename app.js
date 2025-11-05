@@ -143,16 +143,17 @@ async function login() {
     const hash = await hashPassword(pass);
     const { data, error } = await supabase
       .from('users')
-      .select('id, email, data')
+      .select('id, email')
       .eq('email', email)
       .eq('password_hash', hash)
       .single();
 
     if (error) throw error;
 
-    currentUser = { id: data.id, email: data.email, data: data.data };
+    // Сохраняем ТОЛЬКО id и email
+    currentUser = { id: data.id, email: data.email };
     localStorage.setItem('user_session', JSON.stringify(currentUser));
-    loadUserData();
+    loadUserData(); // ← загружает данные из Supabase
     showScreen('main');
   } catch (e) {
     err.textContent = 'Неверная почта или пароль';
@@ -189,11 +190,33 @@ async function register() {
 }
 
 // === ЗАГРУЗКА ДАННЫХ ===
-function loadUserData() {
+async function loadUserData() {
+  if (!currentUser || !currentUser.id) {
+    showScreen('auth');
+    return;
+  }
+
   requestNotify();
-  window.userData = currentUser.data || getDefaultData();
-  checkDailyReset();
-  renderAll();
+
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('data')
+      .eq('id', currentUser.id)
+      .single();
+
+    if (error) throw error;
+
+    // Загружаем данные ТОЛЬКО из облака!
+    window.userData = data.data || getDefaultData();
+    checkDailyReset(); // ← сбросит задачи, если новый день
+    renderAll();
+  } catch (e) {
+    console.error('Ошибка загрузки данных:', e);
+    alert('Не удалось загрузить данные. Войдите снова.');
+    localStorage.removeItem('user_session');
+    showScreen('auth');
+  }
 }
 
 async function saveUserData() {
@@ -521,3 +544,4 @@ function renderTransactions() {
     list.appendChild(li);
   });
 }
+
