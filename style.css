@@ -181,3 +181,34 @@ input::placeholder {
   margin-top: 10px;
   font-size: 0.9rem;
 }
+/* Таблица ежедневных задач */
+.tasks-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.task-cell {
+  background: #2d2d2d;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  word-break: break-word;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.task-cell:hover {
+  background: #3a3a3a;
+}
+
+.task-cell.completed {
+  background: #00796b;
+  color: white;
+  text-decoration: line-through;
+}
+
+.task-cell input[type="checkbox"] {
+  display: none;
+}
