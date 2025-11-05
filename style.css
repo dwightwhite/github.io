@@ -1,0 +1,182 @@
+:root {
+  --bg: #1e1e1e;
+  --card-bg: #252526;
+  --text: #e0e0e0;
+  --accent: #4fc3f7;
+  --preset: #ff7043;
+  --buy: #ff7043;
+  --sell: #66bb6a;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  padding: 16px;
+  line-height: 1.5;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+h1, h2, h3 {
+  margin: 16px 0;
+}
+
+h1 {
+  text-align: center;
+  color: #4fc3f7;
+  font-size: 1.8rem;
+}
+
+h2 {
+  font-size: 1.3rem;
+  color: #bb86fc;
+}
+
+h3 {
+  font-size: 1.1rem;
+  margin-top: 20px;
+}
+
+.screen {
+  display: none;
+}
+
+.screen[style*="block"] {
+  display: block;
+}
+
+.auth-form {
+  max-width: 400px;
+  margin: 50px auto;
+  padding: 24px;
+  background: var(--card-bg);
+  border-radius: 12px;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #252526;
+  margin-bottom: 16px;
+}
+
+.card {
+  background: #2d2d2d;
+  padding: 16px;
+  margin: 16px 0;
+  border-radius: 8px;
+}
+
+.btn {
+  background: #2d2d2d;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  margin: 4px;
+  min-width: 80px;
+}
+
+.btn:hover {
+  background: #3a3a3a;
+}
+
+.btn.primary {
+  background: #0288d1;
+}
+
+.btn.danger {
+  background: #b71c1c;
+}
+
+.input-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+input, select {
+  background: #2d2d2d;
+  color: white;
+  border: 1px solid #444;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-family: inherit;
+  min-width: 100px;
+}
+
+input::placeholder {
+  color: #777;
+}
+
+.timer-card, .task-item {
+  background: #2d2d2d;
+  padding: 10px;
+  margin: 6px 0;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.timer-time {
+  font-family: monospace;
+  font-weight: bold;
+  color: var(--accent);
+  min-width: 80px;
+}
+
+.timer-time.preset {
+  color: var(--preset);
+}
+
+.task-checkbox {
+  margin-right: 10px;
+}
+
+#transList, #statsTransList {
+  list-style: none;
+  max-height: 150px;
+  overflow-y: auto;
+  margin: 10px 0;
+}
+
+#transList li, #statsTransList li {
+  padding: 4px 0;
+  font-family: monospace;
+}
+
+#summary, #statsSummary {
+  font-weight: bold;
+  margin-top: 10px;
+  color: #e0e0e0;
+}
+
+#statsChart {
+  background: #1e1e1e;
+  padding: 10px;
+  border-radius: 8px;
+  margin: 10px 0;
+}
+
+.error {
+  color: #f44336;
+  margin-top: 10px;
+  font-size: 0.9rem;
+}
