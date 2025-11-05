@@ -383,19 +383,40 @@ function markTask(task) {
 function renderDailyTasks() {
   const cont = document.getElementById('dailyTasks');
   cont.innerHTML = '';
-  DAILY_TASKS_LIST.forEach(t => {
-    const div = document.createElement('div');
-    div.className = 'task-item';
-    const inp = document.createElement('input');
-    inp.type = 'checkbox';
-    inp.checked = window.userData.dailyTasks[t];
-    if (window.userData.dailyTasks[t]) inp.disabled = true;
-    else inp.onchange = () => markTask(t);
-    const lab = document.createElement('label');
-    lab.textContent = t;
-    div.append(inp, lab);
-    cont.appendChild(div);
+
+  const grid = document.createElement('div');
+  grid.className = 'tasks-grid';
+
+  DAILY_TASKS_LIST.forEach(task => {
+    const cell = document.createElement('div');
+    cell.className = 'task-cell';
+    if (window.userData.dailyTasks[task]) {
+      cell.classList.add('completed');
+    }
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = window.userData.dailyTasks[task];
+    checkbox.style.display = 'none'; // скрыт — будем использовать div как кнопку
+
+    const label = document.createElement('label');
+    label.textContent = task;
+
+    cell.appendChild(checkbox);
+    cell.appendChild(label);
+
+    cell.addEventListener('click', () => {
+      if (!window.userData.dailyTasks[task]) {
+        markTaskDone(task);
+        cell.classList.add('completed');
+        checkbox.checked = true;
+      }
+    });
+
+    grid.appendChild(cell);
   });
+
+  cont.appendChild(grid);
 }
 
 // === PROFILE ===
@@ -453,29 +474,66 @@ function renderChart() {
 
     const b = window.userData.transactions
       .filter(t => t.type === 'buy' && new Date(t.timestamp).toISOString().split('T')[0] === ds)
-      .reduce((s, t) => s + t.amount, 0);
+      .reduce((sum, t) => sum + t.amount, 0);
     const s = window.userData.transactions
       .filter(t => t.type === 'sell' && new Date(t.timestamp).toISOString().split('T')[0] === ds)
-      .reduce((s, t) => s + t.amount, 0);
+      .reduce((sum, t) => sum + t.amount, 0);
 
     buyData.push(b);
     sellData.push(s);
   }
 
+  // Ограничиваем максимальное значение оси Y
+  const maxVal = Math.max(...buyData, ...sellData, 1) * 1.1; // +10% запаса
+
   chartInstance = new Chart(ctx, {
-    type: 'bar',
+    type: 'line',
      {
-      labels,
+      labels: labels,
       datasets: [
-        { label: 'Покупки', data: buyData, backgroundColor: 'rgba(255,112,67,0.7)' },
-        { label: 'Продажи', data: sellData, backgroundColor: 'rgba(102,187,106,0.7)' }
+        {
+          label: 'Покупки',
+          data: buyData,
+          borderColor: 'rgba(255,112,67,1)',
+          backgroundColor: 'rgba(255,112,67,0.1)',
+          borderWidth: 2,
+          pointRadius: 4,
+          tension: 0.4
+        },
+        {
+          label: 'Продажи',
+          data: sellData,
+          borderColor: 'rgba(102,187,106,1)',
+          backgroundColor: 'rgba(102,187,106,0.1)',
+          borderWidth: 2,
+          pointRadius: 4,
+          tension: 0.4
+        }
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      scales: { y: { beginAtZero: true, ticks: { color: '#e0e0e0' } }, x: { ticks: { color: '#e0e0e0' } } },
-      plugins: { legend: { labels: { color: '#e0e0e0' } } }
+      plugins: {
+        legend: {
+          labels: { color: '#e0e0e0' }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: maxVal, // Фиксируем максимум
+          ticks: {
+            color: '#e0e0e0',
+            stepSize: Math.ceil(maxVal / 5) // деления по 5 шагов
+          },
+          grid: { color: 'rgba(255,255,255,0.1)' }
+        },
+        x: {
+          ticks: { color: '#e0e0e0' },
+          grid: { color: 'rgba(255,255,255,0.1)' }
+        }
+      }
     }
   });
 }
@@ -504,3 +562,4 @@ function renderTransactions() {
     list.appendChild(li);
   });
 }
+
