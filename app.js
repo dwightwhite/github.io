@@ -397,7 +397,7 @@ function renderDailyTasks() {
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.checked = window.userData.dailyTasks[task];
-    checkbox.style.display = 'none'; // скрыт — будем использовать div как кнопку
+    checkbox.style.display = 'none';
 
     const label = document.createElement('label');
     label.textContent = task;
@@ -484,11 +484,11 @@ function renderChart() {
   }
 
   // Ограничиваем максимальное значение оси Y
-  const maxVal = Math.max(...buyData, ...sellData, 1) * 1.1; // +10% запаса
+  const maxVal = Math.max(...buyData, ...sellData, 1) * 1.1;
 
   chartInstance = new Chart(ctx, {
     type: 'line',
-     {
+    data: {
       labels: labels,
       datasets: [
         {
@@ -522,10 +522,10 @@ function renderChart() {
       scales: {
         y: {
           beginAtZero: true,
-          max: maxVal, // Фиксируем максимум
+          max: maxVal,
           ticks: {
             color: '#e0e0e0',
-            stepSize: Math.ceil(maxVal / 5) // деления по 5 шагов
+            stepSize: Math.ceil(maxVal / 5)
           },
           grid: { color: 'rgba(255,255,255,0.1)' }
         },
@@ -562,4 +562,5 @@ function renderTransactions() {
     list.appendChild(li);
   });
 }
+
 
