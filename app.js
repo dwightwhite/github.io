@@ -1,4 +1,5 @@
 // === PWA UPDATE ===
+let intervals = {};
 let refreshing = false;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -209,6 +210,7 @@ async function loadUserData() {
 
     window.userData = data.data || getDefaultData();
     checkDailyReset();
+    startAllTimers(); // ← ДОБАВЛЕНО!
     renderAll();
   } catch (e) {
     console.error('Load error:', e);
@@ -216,6 +218,45 @@ async function loadUserData() {
     localStorage.removeItem('user_session');
     showScreen('auth');
   }
+}
+
+function startAllTimers() {
+  // Пресеты
+  Object.entries(window.userData.presetTimers).forEach(([name, data]) => {
+    if (!intervals[name]) {
+      const start = Date.now();
+      const duration = data.duration;
+      const int = setInterval(() => {
+        const elapsed = (Date.now() - start) / 1000;
+        const remaining = Math.max(0, duration - elapsed);
+        if (remaining <= 0) {
+          clearInterval(int);
+          delete window.userData.presetTimers[name];
+          saveUserData();
+          playSound();
+          if (Notification.permission === 'granted') {
+            new Notification('Таймер завершён!', { body: name });
+          } else {
+            alert(`Таймер завершён: ${name}!`);
+          }
+          renderTimers();
+        }
+      }, 1000);
+      intervals[name] = int;
+    }
+  });
+
+  // Кастомные
+  Object.entries(window.userData.customTimers).forEach(([name, data]) => {
+    if (!intervals[name]) {
+      const start = data.start || Date.now();
+      const int = setInterval(() => {
+        const elapsed = (Date.now() - start) / 1000;
+        renderTimers();
+      }, 1000);
+      intervals[name] = int;
+    }
+  });
 }
 
 async function saveUserData() {
@@ -407,7 +448,7 @@ function renderDailyTasks() {
 
     cell.addEventListener('click', () => {
       if (!window.userData.dailyTasks[task]) {
-        markTaskDone(task);
+        markTask(task); // ← ИСПРАВЛЕНО!
         cell.classList.add('completed');
         checkbox.checked = true;
       }
@@ -418,7 +459,6 @@ function renderDailyTasks() {
 
   cont.appendChild(grid);
 }
-
 // === PROFILE ===
 function setupProfile() {
   document.getElementById('backToMainBtn').onclick = () => showScreen('main');
@@ -520,20 +560,20 @@ function renderChart() {
         }
       },
       scales: {
-        y: {
-          beginAtZero: true,
-          max: maxVal,
-          ticks: {
-            color: '#e0e0e0',
-            stepSize: Math.ceil(maxVal / 5)
-          },
-          grid: { color: 'rgba(255,255,255,0.1)' }
-        },
-        x: {
-          ticks: { color: '#e0e0e0' },
-          grid: { color: 'rgba(255,255,255,0.1)' }
-        }
-      }
+  y: {
+    beginAtZero: true,
+    max: Math.min(maxVal, 10000), // ограничиваем максимум
+    ticks: {
+      color: '#e0e0e0',
+      stepSize: Math.ceil(Math.min(maxVal, 10000) / 5)
+    },
+    grid: { color: 'rgba(255,255,255,0.1)' }
+  },
+  x: {
+    ticks: { color: '#e0e0e0' },
+    grid: { color: 'rgba(255,255,255,0.1)' }
+  }
+}
     }
   });
 }
@@ -562,5 +602,6 @@ function renderTransactions() {
     list.appendChild(li);
   });
 }
+
 
 
