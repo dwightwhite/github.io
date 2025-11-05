@@ -1,11 +1,10 @@
-const CACHE_NAME = 'finance-timer-pwa-v3';
+const CACHE_NAME = 'finance-timer-pwa-v4';
 const urlsToCache = [
   '/',
   '/index.html',
   '/style.css',
   '/app.js',
-  '/notification.mp3',
-  'https://cdn.jsdelivr.net/npm/chart.js'
+  '/notification.mp3'
 ];
 
 self.addEventListener('install', (event) => {
