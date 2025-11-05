@@ -9,9 +9,7 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js');
 }
 
-// === ГЛОБАЛЬНОЕ СОСТОЯНИЕ ===
-let currentUser = null;
-let chartInstance = null;
+// === TASKS LIST ===
 const DAILY_TASKS_LIST = [
   "Нули в казино 2/4 BP",
   "25 действий на стройке 2/4 BP",
@@ -61,7 +59,7 @@ const DAILY_TASKS_LIST = [
   "Принять участие в двух аирдропах 4/8 BP"
 ];
 
-// === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
+// === HASH ===
 async function hashPassword(password) {
   const enc = new TextEncoder();
   const hash = await crypto.subtle.digest('SHA-256', enc.encode(password));
@@ -73,7 +71,7 @@ function getDefaultData() {
     nickname: '',
     server: '',
     transactions: [],
-    dailyTasks: DAILY_TASKS_LIST.reduce((acc, t) => ({ ...acc, [t]: false }), {}),
+    dailyTasks: DAILY_TASKS_LIST.reduce((a, t) => ({ ...a, [t]: false }), {}),
     presetTimers: {},
     customTimers: {},
     lastResetDate: ''
@@ -87,6 +85,9 @@ const screens = {
   profile: document.getElementById('profileScreen')
 };
 
+let currentUser = null;
+let chartInstance = null;
+
 document.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('user_session');
   if (saved) {
@@ -95,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
       loadUserData();
       showScreen('main');
     } catch (e) {
-      console.error('Ошибка восстановления сессии:', e);
+      console.error('Session error:', e);
       showScreen('auth');
     }
   } else {
@@ -111,7 +112,7 @@ function showScreen(name) {
   screens[name].style.display = 'block';
 }
 
-// === ЗВУК ===
+// === SOUND ===
 function playSound() {
   const a = new Audio('/notification.mp3');
   a.volume = 0.7;
@@ -125,7 +126,7 @@ async function requestNotify() {
   }
 }
 
-// === АУТЕНТИФИКАЦИЯ ===
+// === AUTH ===
 function setupAuth() {
   document.getElementById('loginBtn').addEventListener('click', login);
   document.getElementById('registerBtn').addEventListener('click', register);
@@ -150,10 +151,9 @@ async function login() {
 
     if (error) throw error;
 
-    // Сохраняем ТОЛЬКО id и email
     currentUser = { id: data.id, email: data.email };
     localStorage.setItem('user_session', JSON.stringify(currentUser));
-    loadUserData(); // ← загружает данные из Supabase
+    loadUserData();
     showScreen('main');
   } catch (e) {
     err.textContent = 'Неверная почта или пароль';
@@ -189,7 +189,7 @@ async function register() {
   }
 }
 
-// === ЗАГРУЗКА ДАННЫХ ===
+// === DATA ===
 async function loadUserData() {
   if (!currentUser || !currentUser.id) {
     showScreen('auth');
@@ -207,13 +207,12 @@ async function loadUserData() {
 
     if (error) throw error;
 
-    // Загружаем данные ТОЛЬКО из облака!
     window.userData = data.data || getDefaultData();
-    checkDailyReset(); // ← сбросит задачи, если новый день
+    checkDailyReset();
     renderAll();
   } catch (e) {
-    console.error('Ошибка загрузки данных:', e);
-    alert('Не удалось загрузить данные. Войдите снова.');
+    console.error('Load error:', e);
+    alert('Ошибка загрузки данных. Войдите снова.');
     localStorage.removeItem('user_session');
     showScreen('auth');
   }
@@ -221,25 +220,30 @@ async function loadUserData() {
 
 async function saveUserData() {
   if (!currentUser) return;
-  const { error } = await supabase
-    .from('users')
-    .update({ data: window.userData })
-    .eq('id', currentUser.id);
-  if (error) console.error('Save error:', error);
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({ data: window.userData })
+      .eq('id', currentUser.id);
+    if (error) throw error;
+    localStorage.setItem('user_data_backup', JSON.stringify(window.userData));
+  } catch (e) {
+    console.error('Save error:', e);
+    localStorage.setItem('user_data_backup', JSON.stringify(window.userData));
+  }
 }
 
-// === ЕЖЕДНЕВНЫЙ СБРОС ===
 function checkDailyReset() {
   const today = new Date().toISOString().split('T')[0];
   if (window.userData.lastResetDate !== today) {
-    window.userData.dailyTasks = DAILY_TASKS_LIST.reduce((acc, t) => ({ ...acc, [t]: false }), {});
+    window.userData.dailyTasks = DAILY_TASKS_LIST.reduce((a, t) => ({ ...a, [t]: false }), {});
     window.userData.lastResetDate = today;
     saveUserData();
     renderDailyTasks();
   }
 }
 
-// === ОСНОВНОЙ ИНТЕРФЕЙС ===
+// === MAIN ===
 function setupMain() {
   document.getElementById('profileBtn').addEventListener('click', () => {
     document.getElementById('nicknameInput').value = window.userData.nickname || '';
@@ -260,19 +264,14 @@ function setupMain() {
   });
 }
 
-// === ФИНАНСЫ ===
+// === FINANCE ===
 function addTransaction() {
   const amount = parseFloat(document.getElementById('amount').value);
   const type = document.getElementById('transType').value;
   const desc = document.getElementById('desc').value.trim() || 'Без описания';
-  if (isNaN(amount)) return alert('Некорректная сумма');
+  if (isNaN(amount)) return alert('Сумма?');
 
-  window.userData.transactions.push({
-    type,
-    amount,
-    desc,
-    timestamp: Date.now()
-  });
+  window.userData.transactions.push({ type, amount, desc, timestamp: Date.now() });
   saveUserData();
   document.getElementById('amount').value = '';
   document.getElementById('desc').value = '';
@@ -281,20 +280,20 @@ function addTransaction() {
 }
 
 function updateSummary() {
-  const buy = window.userData.transactions.filter(t => t.type === 'buy').reduce((sum, t) => sum + t.amount, 0);
-  const sell = window.userData.transactions.filter(t => t.type === 'sell').reduce((sum, t) => sum + t.amount, 0);
+  const buy = window.userData.transactions.filter(t => t.type === 'buy').reduce((s, t) => s + t.amount, 0);
+  const sell = window.userData.transactions.filter(t => t.type === 'sell').reduce((s, t) => s + t.amount, 0);
   const balance = sell - buy;
   document.getElementById('summary').textContent =
     `Итого: покупки=${buy.toFixed(2)}, продажи=${sell.toFixed(2)}, баланс=${balance >= 0 ? '+' : ''}${balance.toFixed(2)}`;
 }
 
-// === ТАЙМЕРЫ ===
+// === TIMERS ===
 const intervals = {};
 
 function startPresetTimer(name, duration) {
   if (window.userData.presetTimers[name]) return;
   const start = Date.now();
-  window.userData.presetTimers[name] = { duration, start, running: true };
+  window.userData.presetTimers[name] = { duration, start };
   saveUserData();
   renderTimers();
 
@@ -319,8 +318,8 @@ function startPresetTimer(name, duration) {
 
 function addCustomTimer() {
   const name = document.getElementById('timerName').value.trim();
-  if (!name || window.userData.customTimers[name]) return alert('Таймер уже существует или название пустое!');
-  window.userData.customTimers[name] = { start: Date.now(), running: true };
+  if (!name || window.userData.customTimers[name]) return alert('Название?');
+  window.userData.customTimers[name] = { start: Date.now() };
   saveUserData();
   document.getElementById('timerName').value = '';
   renderTimers();
@@ -331,9 +330,8 @@ function renderTimers() {
   cont.innerHTML = '';
 
   Object.entries(window.userData.presetTimers).forEach(([name, t]) => {
-    const elapsed = (Date.now() - t.start) / 1000;
-    const remaining = Math.max(0, t.duration - elapsed);
-    cont.appendChild(createTimerEl(name, remaining, true, () => {
+    const rem = Math.max(0, t.duration - (Date.now() - t.start) / 1000);
+    cont.appendChild(createTimerEl(name, rem, true, () => {
       delete window.userData.presetTimers[name];
       saveUserData();
       renderTimers();
@@ -371,14 +369,10 @@ function formatTime(s) {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   const ss = s % 60;
-  if (h > 0) {
-    return `${h}:${m.toString().padStart(2,'0')}:${ss.toString().padStart(2,'0')}`;
-  } else {
-    return `${m.toString().padStart(2,'0')}:${ss.toString().padStart(2,'0')}`;
-  }
+  return h ? `${h}:${m.toString().padStart(2,'0')}:${ss.toString().padStart(2,'0')}` : `${m.toString().padStart(2,'0')}:${ss.toString().padStart(2,'0')}`;
 }
 
-// === ЗАДАЧИ ===
+// === TASKS ===
 function markTask(task) {
   if (window.userData.dailyTasks[task]) return;
   window.userData.dailyTasks[task] = true;
@@ -395,11 +389,8 @@ function renderDailyTasks() {
     const inp = document.createElement('input');
     inp.type = 'checkbox';
     inp.checked = window.userData.dailyTasks[t];
-    if (window.userData.dailyTasks[t]) {
-      inp.disabled = true;
-    } else {
-      inp.onchange = () => markTask(t);
-    }
+    if (window.userData.dailyTasks[t]) inp.disabled = true;
+    else inp.onchange = () => markTask(t);
     const lab = document.createElement('label');
     lab.textContent = t;
     div.append(inp, lab);
@@ -407,7 +398,7 @@ function renderDailyTasks() {
   });
 }
 
-// === ПРОФИЛЬ ===
+// === PROFILE ===
 function setupProfile() {
   document.getElementById('backToMainBtn').onclick = () => showScreen('main');
   document.getElementById('logoutBtn').onclick = () => {
@@ -419,13 +410,13 @@ function setupProfile() {
     window.userData.nickname = document.getElementById('nicknameInput').value.trim();
     window.userData.server = document.getElementById('serverSelect').value;
     saveUserData();
-    alert('Настройки профиля сохранены!');
+    alert('Сохранено!');
   };
 }
 
 function updateStats() {
-  const buy = window.userData.transactions.filter(t => t.type === 'buy').reduce((sum, t) => sum + t.amount, 0);
-  const sell = window.userData.transactions.filter(t => t.type === 'sell').reduce((sum, t) => sum + t.amount, 0);
+  const buy = window.userData.transactions.filter(t => t.type === 'buy').reduce((s, t) => s + t.amount, 0);
+  const sell = window.userData.transactions.filter(t => t.type === 'sell').reduce((s, t) => s + t.amount, 0);
   const balance = sell - buy;
 
   document.getElementById('statsSummary').innerHTML = `
@@ -440,18 +431,14 @@ function updateStats() {
   list.innerHTML = '';
   [...window.userData.transactions].reverse().forEach(t => {
     const li = document.createElement('li');
-    const date = new Date(t.timestamp).toLocaleDateString();
-    const icon = t.type === 'buy' ? '🔴' : '🟢';
-    li.textContent = `${date} — ${icon} ${t.amount.toFixed(2)} — ${t.desc}`;
+    li.textContent = `${new Date(t.timestamp).toLocaleDateString()} — ${t.type === 'buy' ? '🔴' : '🟢'} ${t.amount.toFixed(2)} — ${t.desc}`;
     list.appendChild(li);
   });
 }
 
 function renderChart() {
   const ctx = document.getElementById('statsChart').getContext('2d');
-  if (chartInstance) {
-    chartInstance.destroy();
-  }
+  if (chartInstance) chartInstance.destroy();
 
   const now = new Date();
   const labels = [];
@@ -464,57 +451,31 @@ function renderChart() {
     const ds = d.toISOString().split('T')[0];
     labels.push(d.toLocaleDateString('ru', { day: 'numeric', month: 'short' }));
 
-    const buySum = window.userData.transactions
+    const b = window.userData.transactions
       .filter(t => t.type === 'buy' && new Date(t.timestamp).toISOString().split('T')[0] === ds)
-      .reduce((sum, t) => sum + t.amount, 0);
-    const sellSum = window.userData.transactions
+      .reduce((s, t) => s + t.amount, 0);
+    const s = window.userData.transactions
       .filter(t => t.type === 'sell' && new Date(t.timestamp).toISOString().split('T')[0] === ds)
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((s, t) => s + t.amount, 0);
 
-    buyData.push(buySum);
-    sellData.push(sellSum);
+    buyData.push(b);
+    sellData.push(s);
   }
 
   chartInstance = new Chart(ctx, {
     type: 'bar',
-    data: {
-      labels: labels,
+     {
+      labels,
       datasets: [
-        {
-          label: 'Покупки',
-          data: buyData,
-          backgroundColor: 'rgba(255, 112, 67, 0.7)',
-          borderColor: 'rgba(255, 112, 67, 1)',
-          borderWidth: 1
-        },
-        {
-          label: 'Продажи',
-          data: sellData,
-          backgroundColor: 'rgba(102, 187, 106, 0.7)',
-          borderColor: 'rgba(102, 187, 106, 1)',
-          borderWidth: 1
-        }
+        { label: 'Покупки', data: buyData, backgroundColor: 'rgba(255,112,67,0.7)' },
+        { label: 'Продажи', data: sellData, backgroundColor: 'rgba(102,187,106,0.7)' }
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: { color: '#e0e0e0' },
-          grid: { color: 'rgba(255,255,255,0.1)' }
-        },
-        x: {
-          ticks: { color: '#e0e0e0' },
-          grid: { color: 'rgba(255,255,255,0.1)' }
-        }
-      },
-      plugins: {
-        legend: {
-          labels: { color: '#e0e0e0' }
-        }
-      }
+      scales: { y: { beginAtZero: true, ticks: { color: '#e0e0e0' } }, x: { ticks: { color: '#e0e0e0' } } },
+      plugins: { legend: { labels: { color: '#e0e0e0' } } }
     }
   });
 }
@@ -539,9 +500,7 @@ function renderTransactions() {
   list.innerHTML = '';
   window.userData.transactions.forEach(t => {
     const li = document.createElement('li');
-    const icon = t.type === 'buy' ? '🔴' : '🟢';
-    li.textContent = `${icon} ${t.amount.toFixed(2)} — ${t.desc}`;
+    li.textContent = `${t.type === 'buy' ? '🔴' : '🟢'} ${t.amount.toFixed(2)} — ${t.desc}`;
     list.appendChild(li);
   });
 }
-
