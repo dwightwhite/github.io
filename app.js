@@ -1,5 +1,4 @@
 // === PWA UPDATE ===
-let intervals = {};
 let refreshing = false;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -602,6 +601,7 @@ function renderTransactions() {
     list.appendChild(li);
   });
 }
+
 
 
 
