@@ -9,7 +9,11 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js');
 }
 
-// === TASKS LIST ===
+// === ГЛОБАЛЬНОЕ СОСТОЯНИЕ ===
+let currentUser = null;
+let chartInstance = null;
+let intervals = {}; // ✅ Объявлена один раз!
+
 const DAILY_TASKS_LIST = [
   "Нули в казино 2/4 BP",
   "25 действий на стройке 2/4 BP",
@@ -37,7 +41,7 @@ const DAILY_TASKS_LIST = [
   "Посетить любой сайт в браузере 1/2 BP",
   "Зайти в любой канал в Brawl 1/2 BP",
   "Поставить лайк любой анкете в Match 1/2 BP",
-  "Прокрутить за DP серебрянный, золотой или driver кейс 10/20 BP",
+  "Прокрутить за DP серебряный, золотой или driver кейс 10/20 BP",
   "Кинуть мяч питомцу 15 раз 2/4 BP",
   "15 выполненных питомцем команд 2/4 BP",
   "Ставка в колесе удачи в казино (межсерверное колесо) 3/6BP",
@@ -58,7 +62,6 @@ const DAILY_TASKS_LIST = [
   "Запустить переработку обезболивающих в лаборатории 4/8 BP",
   "Принять участие в двух аирдропах 4/8 BP"
 ];
-
 // === HASH ===
 async function hashPassword(password) {
   const enc = new TextEncoder();
@@ -602,6 +605,7 @@ function renderTransactions() {
     list.appendChild(li);
   });
 }
+
 
 
 
