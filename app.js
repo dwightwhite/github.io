@@ -87,6 +87,7 @@ const screens = {
 
 let currentUser = null;
 let chartInstance = null;
+let intervals = {};
 
 document.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('user_session');
@@ -601,6 +602,7 @@ function renderTransactions() {
     list.appendChild(li);
   });
 }
+
 
 
 
