@@ -62,6 +62,7 @@ const DAILY_TASKS_LIST = [
   "Запустить переработку обезболивающих в лаборатории 4/8 BP",
   "Принять участие в двух аирдропах 4/8 BP"
 ];
+
 // === HASH ===
 async function hashPassword(password) {
   const enc = new TextEncoder();
@@ -88,9 +89,7 @@ const screens = {
   profile: document.getElementById('profileScreen')
 };
 
-let currentUser = null;
-let chartInstance = null;
-let intervals = {};
+;
 
 document.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('user_session');
@@ -330,9 +329,6 @@ function updateSummary() {
   document.getElementById('summary').textContent =
     `Итого: покупки=${buy.toFixed(2)}, продажи=${sell.toFixed(2)}, баланс=${balance >= 0 ? '+' : ''}${balance.toFixed(2)}`;
 }
-
-// === TIMERS ===
-const intervals = {};
 
 function startPresetTimer(name, duration) {
   if (window.userData.presetTimers[name]) return;
@@ -605,6 +601,7 @@ function renderTransactions() {
     list.appendChild(li);
   });
 }
+
 
 
 
