@@ -1,18 +1,7 @@
-// === PWA UPDATE ===
-let refreshing = false;
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (refreshing) return;
-    refreshing = true;
-    window.location.reload();
-  });
-  navigator.serviceWorker.register('/sw.js');
-}
-
 // === ГЛОБАЛЬНОЕ СОСТОЯНИЕ ===
 let currentUser = null;
 let chartInstance = null;
-let intervals = {}; // ✅ Объявлена один раз!
+let intervals = {};
 
 const DAILY_TASKS_LIST = [
   "Нули в казино 2/4 BP",
@@ -89,8 +78,6 @@ const screens = {
   profile: document.getElementById('profileScreen')
 };
 
-;
-
 document.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('user_session');
   if (saved) {
@@ -145,16 +132,13 @@ async function login() {
 
   try {
     const hash = await hashPassword(pass);
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, email')
-      .eq('email', email)
-      .eq('password_hash', hash)
-      .single();
+    const users = loadUsers();
+    const user = users[email];
+    if (!user || user.passwordHash !== hash) {
+      throw new Error('Неверная почта или пароль');
+    }
 
-    if (error) throw error;
-
-    currentUser = { id: data.id, email: data.email };
+    currentUser = { email };
     localStorage.setItem('user_session', JSON.stringify(currentUser));
     loadUserData();
     showScreen('main');
@@ -172,19 +156,16 @@ async function register() {
   if (!email || !pass) return err.textContent = 'Заполните поля';
 
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email);
-
-    if (data && data.length > 0) return err.textContent = 'Пользователь существует';
+    const users = loadUsers();
+    if (users[email]) return err.textContent = 'Пользователь существует';
 
     const hash = await hashPassword(pass);
-    const { error: insErr } = await supabase
-      .from('users')
-      .insert({ email, password_hash: hash, data: getDefaultData() });
-
-    if (insErr) throw insErr;
+    users[email] = {
+      email,
+      passwordHash: hash,
+      data: getDefaultData()
+    };
+    saveUsers(users);
 
     await login();
   } catch (e) {
@@ -193,87 +174,41 @@ async function register() {
 }
 
 // === DATA ===
-async function loadUserData() {
-  if (!currentUser || !currentUser.id) {
+function loadUserData() {
+  if (!currentUser) {
     showScreen('auth');
     return;
   }
 
   requestNotify();
 
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('data')
-      .eq('id', currentUser.id)
-      .single();
-
-    if (error) throw error;
-
-    window.userData = data.data || getDefaultData();
-    checkDailyReset();
-    startAllTimers(); // ← ДОБАВЛЕНО!
-    renderAll();
-  } catch (e) {
-    console.error('Load error:', e);
-    alert('Ошибка загрузки данных. Войдите снова.');
-    localStorage.removeItem('user_session');
+  const users = loadUsers();
+  const user = users[currentUser.email];
+  if (!user) {
     showScreen('auth');
+    return;
   }
+
+  window.userData = user.data || getDefaultData();
+  checkDailyReset();
+  startAllTimers();
+  renderAll();
 }
 
-function startAllTimers() {
-  // Пресеты
-  Object.entries(window.userData.presetTimers).forEach(([name, data]) => {
-    if (!intervals[name]) {
-      const start = Date.now();
-      const duration = data.duration;
-      const int = setInterval(() => {
-        const elapsed = (Date.now() - start) / 1000;
-        const remaining = Math.max(0, duration - elapsed);
-        if (remaining <= 0) {
-          clearInterval(int);
-          delete window.userData.presetTimers[name];
-          saveUserData();
-          playSound();
-          if (Notification.permission === 'granted') {
-            new Notification('Таймер завершён!', { body: name });
-          } else {
-            alert(`Таймер завершён: ${name}!`);
-          }
-          renderTimers();
-        }
-      }, 1000);
-      intervals[name] = int;
-    }
-  });
-
-  // Кастомные
-  Object.entries(window.userData.customTimers).forEach(([name, data]) => {
-    if (!intervals[name]) {
-      const start = data.start || Date.now();
-      const int = setInterval(() => {
-        const elapsed = (Date.now() - start) / 1000;
-        renderTimers();
-      }, 1000);
-      intervals[name] = int;
-    }
-  });
-}
-
-async function saveUserData() {
+function saveUserData() {
   if (!currentUser) return;
-  try {
-    const { error } = await supabase
-      .from('users')
-      .update({ data: window.userData })
-      .eq('id', currentUser.id);
-    if (error) throw error;
-    localStorage.setItem('user_data_backup', JSON.stringify(window.userData));
-  } catch (e) {
-    console.error('Save error:', e);
-    localStorage.setItem('user_data_backup', JSON.stringify(window.userData));
-  }
+  const users = loadUsers();
+  users[currentUser.email].data = window.userData;
+  saveUsers(users);
+}
+
+function loadUsers() {
+  const data = localStorage.getItem('users_data');
+  return data ? JSON.parse(data) : {};
+}
+
+function saveUsers(users) {
+  localStorage.setItem('users_data', JSON.stringify(users));
 }
 
 function checkDailyReset() {
@@ -330,6 +265,7 @@ function updateSummary() {
     `Итого: покупки=${buy.toFixed(2)}, продажи=${sell.toFixed(2)}, баланс=${balance >= 0 ? '+' : ''}${balance.toFixed(2)}`;
 }
 
+// === TIMERS ===
 function startPresetTimer(name, duration) {
   if (window.userData.presetTimers[name]) return;
   const start = Date.now();
@@ -447,7 +383,7 @@ function renderDailyTasks() {
 
     cell.addEventListener('click', () => {
       if (!window.userData.dailyTasks[task]) {
-        markTask(task); // ← ИСПРАВЛЕНО!
+        markTask(task);
         cell.classList.add('completed');
         checkbox.checked = true;
       }
@@ -458,6 +394,7 @@ function renderDailyTasks() {
 
   cont.appendChild(grid);
 }
+
 // === PROFILE ===
 function setupProfile() {
   document.getElementById('backToMainBtn').onclick = () => showScreen('main');
@@ -559,20 +496,20 @@ function renderChart() {
         }
       },
       scales: {
-  y: {
-    beginAtZero: true,
-    max: Math.min(maxVal, 10000), // ограничиваем максимум
-    ticks: {
-      color: '#e0e0e0',
-      stepSize: Math.ceil(Math.min(maxVal, 10000) / 5)
-    },
-    grid: { color: 'rgba(255,255,255,0.1)' }
-  },
-  x: {
-    ticks: { color: '#e0e0e0' },
-    grid: { color: 'rgba(255,255,255,0.1)' }
-  }
-}
+        y: {
+          beginAtZero: true,
+          max: Math.min(maxVal, 10000),
+          ticks: {
+            color: '#e0e0e0',
+            stepSize: Math.ceil(Math.min(maxVal, 10000) / 5)
+          },
+          grid: { color: 'rgba(255,255,255,0.1)' }
+        },
+        x: {
+          ticks: { color: '#e0e0e0' },
+          grid: { color: 'rgba(255,255,255,0.1)' }
+        }
+      }
     }
   });
 }
@@ -602,9 +539,43 @@ function renderTransactions() {
   });
 }
 
+function startAllTimers() {
+  // Очистим старые интервалы
+  Object.keys(intervals).forEach(name => {
+    clearInterval(intervals[name]);
+    delete intervals[name];
+  });
 
+  // Пресеты
+  Object.entries(window.userData.presetTimers).forEach(([name, data]) => {
+    const start = Date.now();
+    const duration = data.duration;
+    const int = setInterval(() => {
+      const elapsed = (Date.now() - start) / 1000;
+      const remaining = Math.max(0, duration - elapsed);
+      if (remaining <= 0) {
+        clearInterval(int);
+        delete window.userData.presetTimers[name];
+        saveUserData();
+        playSound();
+        if (Notification.permission === 'granted') {
+          new Notification('Таймер завершён!', { body: name });
+        } else {
+          alert(`Таймер завершён: ${name}!`);
+        }
+        renderTimers();
+      }
+    }, 1000);
+    intervals[name] = int;
+  });
 
-
-
-
-
+  // Кастомные
+  Object.entries(window.userData.customTimers).forEach(([name, data]) => {
+    const start = data.start || Date.now();
+    const int = setInterval(() => {
+      const elapsed = (Date.now() - start) / 1000;
+      renderTimers();
+    }, 1000);
+    intervals[name] = int;
+  });
+}
